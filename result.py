@@ -1,13 +1,9 @@
 from flask import Flask, render_template, redirect, request, url_for, flash, session, make_response
 from flask_socketio import SocketIO, emit, join_room
-from flask_session import Session
+from flask_session import Session  # Import Flask-Session
 from pymongo import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
-import os
-from urllib.parse import quote_plus
-from pymongo import MongoClient
-
 
 # Initialize Flask App and MongoDB connection
 app = Flask(__name__)
@@ -19,11 +15,9 @@ app.config['SESSION_KEY_PREFIX'] = 'chat_'  # Prefix for session keys
 Session(app)  # Initialize session
 socketio = SocketIO(app)
 
-# MongoDB Setup - Using MongoDB Atlas cluster URI
-username = quote_plus("shubham")
-password = quote_plus("shubham@123")
-client = MongoClient(f"mongodb+srv://{username}:{password}@cluster0.ldylk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
-db = client['chat_ap']
+# MongoDB Setup
+client = MongoClient("mongodb://localhost:27017/")
+db = client['chat_app']
 users_collection = db['users']
 rooms_collection = db['rooms']
 messages_collection = db['messages']
@@ -45,6 +39,7 @@ def login():
             session_id = str(uuid.uuid4())  # Generate a unique session ID
             session['username'] = username
             session['session_id'] = session_id  # Store the session ID
+            # logging.debug(f"User {username} logged in. Session ID: {session_id}, Session: {session}")
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password', 'error')
@@ -69,6 +64,7 @@ def register():
 
 # Dashboard
 @app.route('/dashboard')
+@app.route('/dashboard')
 def dashboard():
     if 'username' in session and 'session_id' in session:
         user_rooms = list(rooms_collection.find({'created_by': session['username']}))
@@ -91,6 +87,7 @@ def create_room():
         return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
+
 # Join room and view chat
 @app.route('/join_room', methods=['POST'])
 def join_room_post():
@@ -112,13 +109,14 @@ def chat(room_id):
                 room_id=room_id,
                 room_name=room.get('room_name'),
                 username=session['username'],
-                session_id=session['session_id'],
+                session_id=session['session_id'],  # Pass session_id here
                 messages=messages
             )
         else:
             flash('Room not found', 'error')
             return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
+
 
 # Socket events for real-time messaging
 @socketio.on('send_message')
